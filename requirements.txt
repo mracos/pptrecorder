@@ -1,0 +1,7 @@
+EasyProcess==0.2.3
+lxml==3.7.3
+olefile==0.44
+Pillow==4.1.1
+pyscreenshot==0.4.2
+python-pptx==0.6.5
+XlsxWriter==0.9.6
