@@ -1,4 +1,4 @@
-import argparse, io, signal
+import argparse, io
 from types import MethodType
 
 import pyscreenshot
