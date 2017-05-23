@@ -1,10 +1,10 @@
 import argparse, io
 from types import MethodType
+from multiprocessing import Queue, Process
 
 import pyscreenshot
 from pptx import Presentation
 from pptx.util import Inches
-
 
 def parse_args():
     parser = argparse.ArgumentParser(
@@ -15,13 +15,17 @@ def parse_args():
     parser.add_argument("file", metavar="file", type=str)
     return parser.parse_args()
 
-def get_actual_image():
+def append_screenshot_queue(image_queue):
+    print("taking screenshot")
     image = pyscreenshot.grab()
-    return image
+    image_queue.put(image)
 
-def add_slide(ppt, image):
-    """ append an slide to the presentation with
-        the current image """
+def add_slide(ppt, queue_image):
+    """
+        append an slide to the presentation with
+        the current image
+    """
+    image = queue_image.get()
     blank_slide_layout = ppt.slide_layouts[6]
 
     slide = ppt.slides.add_slide(blank_slide_layout)
@@ -40,20 +44,34 @@ def add_slide(ppt, image):
 
 def record_screen():
     ppt = Presentation()
+    image_queue = Queue()
+    process_get_image = Process(
+        target=append_screenshot_queue,
+        args=(image_queue,)
+    )
+    process_add_slide = Process(
+        target=add_slide,
+        args=(ppt, image_queue)
+    )
+
+    process_get_image.start()
+    process_add_slide.start()
+
     try:
         while True:
-            print("adding image")
-            image = get_actual_image()
-            add_slide(ppt, image)
+            process_get_image.run()
+            process_add_slide.run()
     except KeyboardInterrupt:
-        print("saving to file")
-        pass
+        process_add_slide.terminate()
+        process_get_image.terminate()
+        image_queue.terminate()
     finally:
         return ppt
 
 def main():
     args = parse_args()
     ppt = record_screen()
+    print("saving to file")
     ppt.save(args.file)
 
 if __name__ == '__main__':
