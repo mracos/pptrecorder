@@ -16,6 +16,10 @@ def parse_args():
     return parser.parse_args()
 
 def append_screenshot_queue(image_queue):
+    """
+        append a screenshot of the actual screen
+        to a FIFO queue
+    """
     print("taking screenshot")
     image = pyscreenshot.grab()
     image_queue.put(image)
@@ -23,7 +27,7 @@ def append_screenshot_queue(image_queue):
 def add_slide(ppt, queue_image):
     """
         append an slide to the presentation with
-        the current image
+        the image get from the FIFO queue
     """
     image = queue_image.get()
     blank_slide_layout = ppt.slide_layouts[6]
@@ -43,6 +47,10 @@ def add_slide(ppt, queue_image):
     )
 
 def record_screen():
+    """
+        creates the pptx in memory and add the slides
+        with the screenshot
+    """
     ppt = Presentation()
     image_queue = Queue()
     process_get_image = Process(
