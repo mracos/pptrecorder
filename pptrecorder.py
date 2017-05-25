@@ -1,4 +1,4 @@
-import argparse, io, logging
+import argparse, io, logging, signal
 from time import time
 from types import MethodType
 from multiprocessing import Queue, Process
@@ -25,36 +25,48 @@ def append_screenshot_queue(image_queue):
         append a screenshot of the actual screen
         to a FIFO queue
     """
-    logging.info("taking screenshot")
-    image = pyscreenshot.grab()
-    image_queue.put(image)
+    while True:
+        logging.info(
+            "taking screenshot, image_queue: [{}]".format(image_queue.qsize())
+        )
+        image = pyscreenshot.grab()
+        image_queue.put(image)
 
-def add_slide(ppt, queue_image):
+def resize_patch_image(image, size):
+    """
+        gets the image from the queue
+        and it returns it resized and 'patched'
+        to be processed bu the add_picture()
+    """
+    image.thumbnail(size)
+    # workaround because the add_picture expects an read()
+    # to return the bytes
+    b_image = io.BytesIO()
+    image.save(b_image, format='PNG')
+    b_image.read = MethodType(lambda self: self.getvalue(), b_image)
+    return b_image
+
+def add_slide_to_ppt(ppt, image_queue):
     """
         append an slide to the presentation with
         the image get from the FIFO queue
     """
-    image = queue_image.get()
-
-    slide_height = Emu(ppt.slide_height).pt
-    slide_width = Emu(ppt.slide_width).pt
-    image.thumbnail((slide_width, slide_height))
-
-    blank_slide_layout = ppt.slide_layouts[6]
-
-    slide = ppt.slides.add_slide(blank_slide_layout)
-    left = top = Emu(0)
-
-    # workaround because the add_picture expects an read()
-    # to return the bytes
-    bimage = io.BytesIO()
-    image.save(bimage, format='PNG')
-    bimage.read = MethodType(lambda self: self.getvalue(), bimage)
-
-    logging.info("adding image to presentation")
-    pic = slide.shapes.add_picture(
-        bimage, left, top
+    size = (
+        Emu(ppt.slide_height).pt,
+        Emu(ppt.slide_width).pt
     )
+    blank_slide_layout = ppt.slide_layouts[6]
+    left = top = Emu(0)
+    while True:
+        image = resize_patch_image(image_queue.get(), size)
+        slide = ppt.slides.add_slide(blank_slide_layout)
+
+        logging.info(
+            "adding image to presentation, slides: [{}]".format(len(ppt.slides)),
+        ) 
+        pic = slide.shapes.add_picture(
+            image, left, top
+        )
 
 def record_screen():
     """
@@ -62,35 +74,49 @@ def record_screen():
         with the screenshot
     """
     ppt = Presentation()
+
+    # make child processes ignore ctrl-c
+    signal.pthread_sigmask(signal.SIG_BLOCK,
+                           (signal.SIGINT,))
     image_queue = Queue()
     process_get_image = Process(
         target=append_screenshot_queue,
         args=(image_queue,)
     )
     process_add_slide = Process(
-        target=add_slide,
+        target=add_slide_to_ppt,
         args=(ppt, image_queue)
     )
 
-    logging.info(("starting get_image and add_slide "
-               "process"))
-    process_get_image.start()
     process_add_slide.start()
+    process_get_image.start()
+
+    # now we catch CTRL-C again
+    signal.pthread_sigmask(signal.SIG_UNBLOCK,
+                           (signal.SIGINT,))
+
+    logging.info(
+        ("started processes: get_image "
+         "and add_slide with PIDs: {}, {}").format(
+             process_get_image.pid, process_add_slide.pid
+         )
+    )
 
     try:
-        while True:
-            process_get_image.run()
-            process_add_slide.run()
-    except Error:
-        logging.info(("terminating add_slide ,"
-                   "get_image and queue process"))
+        process_add_slide.join()
+        process_get_image.join()
+    except KeyboardInterrupt:
+        logging.info(
+            "terminate get_image and add_slide with PIDs: {}, {}"
+                .format(process_get_image.pid, process_add_slide.pid)
+        )
         process_add_slide.terminate()
         process_get_image.terminate()
-        image_queue.terminate()
+        image_queue.close()
     finally:
         return ppt
 
-def main():
+if __name__ == "__main__":
     args = parse_args()
     log.setLevel(logging.INFO if args.verbosity else logging.ERROR)
 
@@ -102,6 +128,3 @@ def main():
     print("saving to file")
 
     ppt.save(args.file)
-
-if __name__ == "__main__":
-    main()
