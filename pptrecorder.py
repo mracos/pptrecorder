@@ -7,7 +7,7 @@ import pyscreenshot
 from pptx import Presentation
 from pptx.util import Inches
 
-log = logging.getLogger(__name__)
+log = logging.getLogger()
 
 def parse_args():
     parser = argparse.ArgumentParser(
@@ -24,7 +24,7 @@ def append_screenshot_queue(image_queue):
         append a screenshot of the actual screen
         to a FIFO queue
     """
-    log.info("taking screenshot")
+    logging.info("taking screenshot")
     image = pyscreenshot.grab()
     image_queue.put(image)
 
@@ -46,7 +46,7 @@ def add_slide(ppt, queue_image):
     image.save(bimage, format='PNG')
     bimage.read = MethodType(lambda self: self.getvalue(), bimage)
 
-    log.info("adding image to presentation")
+    logging.info("adding image to presentation")
     pic = slide.shapes.add_picture(
         bimage, left, top, height=height
     )
@@ -67,7 +67,7 @@ def record_screen():
         args=(ppt, image_queue)
     )
 
-    log.info(("starting get_image and add_slide "
+    logging.info(("starting get_image and add_slide "
                "process"))
     process_get_image.start()
     process_add_slide.start()
@@ -77,7 +77,7 @@ def record_screen():
             process_get_image.run()
             process_add_slide.run()
     except KeyboardInterrupt:
-        log.info(("terminating add_slide ,"
+        logging.info(("terminating add_slide ,"
                    "get_image and queue process"))
         process_add_slide.terminate()
         process_get_image.terminate()
