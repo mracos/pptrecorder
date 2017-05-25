@@ -5,7 +5,8 @@ from multiprocessing import Queue, Process
 
 import pyscreenshot
 from pptx import Presentation
-from pptx.util import Inches
+from pptx.util import Emu
+from PIL import Image
 
 log = logging.getLogger()
 
@@ -34,11 +35,15 @@ def add_slide(ppt, queue_image):
         the image get from the FIFO queue
     """
     image = queue_image.get()
+
+    slide_height = Emu(ppt.slide_height).pt
+    slide_width = Emu(ppt.slide_width).pt
+    image.thumbnail((slide_width, slide_height))
+
     blank_slide_layout = ppt.slide_layouts[6]
 
     slide = ppt.slides.add_slide(blank_slide_layout)
-    left = top = Inches(0)
-    height = Inches(10)
+    left = top = Emu(0)
 
     # workaround because the add_picture expects an read()
     # to return the bytes
@@ -48,7 +53,7 @@ def add_slide(ppt, queue_image):
 
     logging.info("adding image to presentation")
     pic = slide.shapes.add_picture(
-        bimage, left, top, height=height
+        bimage, left, top
     )
 
 def record_screen():
