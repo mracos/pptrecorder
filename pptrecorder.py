@@ -76,7 +76,7 @@ def record_screen():
         while True:
             process_get_image.run()
             process_add_slide.run()
-    except KeyboardInterrupt:
+    except Error:
         logging.info(("terminating add_slide ,"
                    "get_image and queue process"))
         process_add_slide.terminate()
