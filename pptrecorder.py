@@ -35,7 +35,7 @@ def resize_patch_image(image, size):
         and it returns it resized and 'patched'
         to be processed by the pptx.add_picture()
     """
-    image.thumbnail(size)
+    image.thumbnail(size, Image.ANTIALIAS)
     # workaround because the add_picture expects an read()
     # to return the bytes
     b_image = BytesIO()
@@ -49,8 +49,8 @@ def add_slide_to_ppt(ppt, image):
         the image
     """
     size = (
-        Emu(ppt.slide_height).pt,
-        Emu(ppt.slide_width).pt
+        Emu(ppt.slide_width).pt,
+        Emu(ppt.slide_height).pt
     )
     blank_slide_layout = ppt.slide_layouts[6]
     left = top = Emu(0)
