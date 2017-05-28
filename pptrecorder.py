@@ -1,7 +1,6 @@
 import argparse, io, logging, signal
 from time import time
 from types import MethodType
-from multiprocessing import Queue, Process
 
 import pyscreenshot
 from pptx import Presentation
@@ -20,23 +19,22 @@ def parse_args():
     parser.add_argument("-v", "--verbosity", action="store_true")
     return parser.parse_args()
 
-def append_screenshot_queue(image_queue):
+def take_images(image_array):
     """
-        append a screenshot of the actual screen
-        to a FIFO queue
+        append the images taken to an array
     """
     while True:
-        logging.info(
-            "taking screenshot, image_queue: [{}]".format(image_queue.qsize())
-        )
         image = pyscreenshot.grab()
-        image_queue.put(image)
+        image_array.append(image)
+        logging.info(
+            "screenshot taken, image_array: [{}]".format(len(image_array))
+        )
 
 def resize_patch_image(image, size):
     """
-        gets the image from the queue
+        gets the image
         and it returns it resized and 'patched'
-        to be processed bu the add_picture()
+        to be processed by the pptx.add_picture()
     """
     image.thumbnail(size)
     # workaround because the add_picture expects an read()
@@ -46,10 +44,10 @@ def resize_patch_image(image, size):
     b_image.read = MethodType(lambda self: self.getvalue(), b_image)
     return b_image
 
-def add_slide_to_ppt(ppt, image_queue):
+def add_slide_to_ppt(ppt, image):
     """
         append an slide to the presentation with
-        the image get from the FIFO queue
+        the image
     """
     size = (
         Emu(ppt.slide_height).pt,
@@ -57,74 +55,50 @@ def add_slide_to_ppt(ppt, image_queue):
     )
     blank_slide_layout = ppt.slide_layouts[6]
     left = top = Emu(0)
-    while True:
-        image = resize_patch_image(image_queue.get(), size)
-        slide = ppt.slides.add_slide(blank_slide_layout)
+    slide = ppt.slides.add_slide(blank_slide_layout)
 
-        logging.info(
-            "adding image to presentation, slides: [{}]".format(len(ppt.slides)),
-        ) 
-        pic = slide.shapes.add_picture(
-            image, left, top
-        )
+    image = resize_patch_image(image, size)
+
+    logging.info(
+        "adding image to presentation, slides: [{}]".format(len(ppt.slides)),
+    )
+    pic = slide.shapes.add_picture(
+        image, left, top
+    )
+
+def build_ppt(image_array):
+    """
+        buidls the ppt from the image_queue
+    """
+    ppt = Presentation()
+    for image in image_array:
+        add_slide_to_ppt(ppt, image)
+    return ppt
 
 def record_screen():
     """
-        creates the pptx in memory and add the slides
-        with the screenshot
+        take the screenshots, than returns the pttx with the
+        slides
     """
-    ppt = Presentation()
-
-    # make child processes ignore ctrl-c
-    signal.pthread_sigmask(signal.SIG_BLOCK,
-                           (signal.SIGINT,))
-    image_queue = Queue()
-    process_get_image = Process(
-        target=append_screenshot_queue,
-        args=(image_queue,)
-    )
-    process_add_slide = Process(
-        target=add_slide_to_ppt,
-        args=(ppt, image_queue)
-    )
-
-    process_add_slide.start()
-    process_get_image.start()
-
-    # now we catch CTRL-C again
-    signal.pthread_sigmask(signal.SIG_UNBLOCK,
-                           (signal.SIGINT,))
-
-    logging.info(
-        ("started processes: get_image "
-         "and add_slide with PIDs: {}, {}").format(
-             process_get_image.pid, process_add_slide.pid
-         )
-    )
-
+    image_array = []
+    time_start = time()
     try:
-        process_add_slide.join()
-        process_get_image.join()
+        take_images(image_array)
     except KeyboardInterrupt:
-        logging.info(
-            "terminate get_image and add_slide with PIDs: {}, {}"
-                .format(process_get_image.pid, process_add_slide.pid)
-        )
-        process_add_slide.terminate()
-        process_get_image.terminate()
-        image_queue.close()
-    finally:
-        return ppt
+        pass
+
+    time_end = time()
+    print("recorded {0:.3f} seconds".format(time_end - time_start))
+
+    print("building ppt")
+    return build_ppt(image_array)
 
 if __name__ == "__main__":
     args = parse_args()
     log.setLevel(logging.INFO if args.verbosity else logging.ERROR)
 
     print("starting to record")
-    time_start = time()
     ppt = record_screen()
-    time_elapsed = (time() - time_start)
-    print("recorded {0:.3f} seconds".format(time_elapsed))
-    print("saving to file")
 
+    print("saving to file")
     ppt.save(args.file)
