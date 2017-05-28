@@ -18,16 +18,20 @@ def parse_args():
     parser.add_argument("-v", "--verbosity", action="store_true")
     return parser.parse_args()
 
-def take_images(image_array):
+def take_images():
     """
         append the images taken to an array
     """
-    while True:
-        image = pyscreenshot.grab()
-        image_array.append(image)
-        logging.info(
-            "screenshot taken, image_array: [{}]".format(len(image_array))
-        )
+    image_array = []
+    try:
+        while True:
+            image = pyscreenshot.grab()
+            image_array.append(image)
+            logging.info(
+                "screenshot taken, image_array: [{}]".format(len(image_array))
+            )
+    except (KeyboardInterrupt, AttributeError):
+        return image_array
 
 def resize_patch_image(image, size):
     """
@@ -79,16 +83,13 @@ def record_screen():
         take the screenshots, than returns the pttx with the
         slides
     """
-    image_array = []
+    #  image_array = []
     time_start = time()
-    try:
-        print("recording...")
-        take_images(image_array)
-    except KeyboardInterrupt:
-        print("finished recording")
-        pass
-
+    print("recording...")
+    image_array = take_images()
     time_end = time()
+    print("finished recording")
+
     print("recorded {0:.3f} seconds".format(time_end - time_start))
 
     print("building power point...")
