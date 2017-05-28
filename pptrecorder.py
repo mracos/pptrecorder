@@ -1,4 +1,5 @@
-import argparse, io, logging, signal
+import argparse, logging
+from io import BytesIO
 from time import time
 from types import MethodType
 
@@ -6,8 +7,6 @@ import pyscreenshot
 from pptx import Presentation
 from pptx.util import Emu
 from PIL import Image
-
-log = logging.getLogger()
 
 def parse_args():
     parser = argparse.ArgumentParser(
@@ -39,7 +38,7 @@ def resize_patch_image(image, size):
     image.thumbnail(size)
     # workaround because the add_picture expects an read()
     # to return the bytes
-    b_image = io.BytesIO()
+    b_image = BytesIO()
     image.save(b_image, format='PNG')
     b_image.read = MethodType(lambda self: self.getvalue(), b_image)
     return b_image
@@ -83,21 +82,24 @@ def record_screen():
     image_array = []
     time_start = time()
     try:
+        print("recording...")
         take_images(image_array)
     except KeyboardInterrupt:
+        print("finished recording")
         pass
 
     time_end = time()
     print("recorded {0:.3f} seconds".format(time_end - time_start))
 
-    print("building ppt")
+    print("building power point...")
     return build_ppt(image_array)
 
 if __name__ == "__main__":
     args = parse_args()
-    log.setLevel(logging.INFO if args.verbosity else logging.ERROR)
+    logging.basicConfig(
+        level=logging.INFO if args.verbosity else logging.ERROR
+    )
 
-    print("starting to record")
     ppt = record_screen()
 
     print("saving to file")
