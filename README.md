@@ -8,11 +8,15 @@ powerpoint presentation has? NOW YOU CAN! :punch:
 :tv: [demo here](https://docs.google.com/presentation/d/1QN96tTeNbmZl4TLik_C3QsKtQoamWyeO4NsLgDxcLT0/pub?start=true&loop=true&delayms=200)
 
 ----------------------
+### Running
 - first you need a backend as listed [here](https://github.com/ponty/pyscreenshot)
 - just clone it, install the requirements with `pip install -r requirements.txt`
-- run directly with `python pptrecorder.py path/to/save_file.pptx`
+- run with `python pptrecorder.py path/to/save_file.pptx`
     - than to stop just `CTRL-C` it
 - DO AWESOME THINGS
+
+### Tests
+- to run the tests just `python -m unittest`
 
 ----------------------
 :warning:
