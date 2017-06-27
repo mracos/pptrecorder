@@ -28,7 +28,9 @@ def take_images():
             image = pyscreenshot.grab()
             image_array.append(image)
             logging.info(
-                "screenshot taken, image_array: [{}]".format(len(image_array))
+                "screenshot taken, image_array: [{}]".format(
+                    len(image_array)
+                )
             )
     except (KeyboardInterrupt, AttributeError):
         return image_array
@@ -63,7 +65,9 @@ def add_slide_to_ppt(ppt, image):
     image = resize_patch_image(image, size)
 
     logging.info(
-        "adding image to presentation, slides: [{}]".format(len(ppt.slides)),
+        "adding image to presentation, slides: [{}]".format(
+            len(ppt.slides)
+        )
     )
     pic = slide.shapes.add_picture(
         image, left, top
